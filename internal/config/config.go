@@ -1,0 +1,60 @@
+package config
+
+import (
+	"flag"
+	"os"
+	"time"
+
+	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/joho/godotenv"
+)
+
+type Config struct {
+	Env        string           `yaml:"env" env-default:"local"`
+	HttpServer HttpServerConfig `yaml:"http_server"`
+}
+
+type HttpServerConfig struct {
+	Port         int           `yaml:"port" env-default:"8080"`
+	ReadTimeout  time.Duration `yaml:"read_timeout" env-default:"30s"`
+	WriteTimeout time.Duration `yaml:"write_timeout" env-default:"30s"`
+	IdleTimeout  time.Duration `yaml:"idle_timeout" env-default:"60s"`
+}
+
+func MustLoad() *Config {
+	if err := godotenv.Load(".env"); err != nil {
+		panic("failed to load .env file: " + err.Error())
+	}
+
+	configPath := fetchConfigPath()
+	if configPath == "" {
+		panic("config path is required")
+	}
+
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		panic("config file not found: " + configPath)
+	}
+
+	var cfg Config
+	if err := cleanenv.ReadEnv(&cfg); err != nil {
+		panic("failed to read env: " + err.Error())
+	}
+	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+		panic("failed to read config file: " + err.Error())
+	}
+
+	return &cfg
+}
+
+func fetchConfigPath() string {
+	var configPath string
+
+	flag.StringVar(&configPath, "config-path", "", "path to config file")
+	flag.Parse()
+
+	if configPath == "" {
+		configPath = os.Getenv("CONFIG_PATH")
+	}
+
+	return configPath
+}
