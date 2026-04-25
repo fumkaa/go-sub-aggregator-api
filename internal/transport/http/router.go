@@ -1,17 +1,29 @@
 package httpserver
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/fumkaa/go-sub-aggregator-api/internal/domain/models"
+	"github.com/fumkaa/go-sub-aggregator-api/internal/transport/http/middleware"
+	"github.com/go-chi/chi/v5"
+	middlewareChi "github.com/go-chi/chi/v5/middleware"
+)
 
 func RegisterRoutes(api *serverAPI) *chi.Mux {
-	router := chi.NewRouter()
+	r := chi.NewRouter()
 
-	router.Route("/subscriptions", func(r chi.Router) {
-		r.Post("/", api.CreateSub)
-		r.Get("/{id}", api.GetSubByID)
-		r.Put("/{id}", api.UpdateSub)
-		r.Delete("/{id}", api.DeleteSub)
-		r.Get("/", api.List)
+	r.Use(middlewareChi.RequestID)
+
+	r.Route("/subscriptions", func(r chi.Router) {
+		r.With(middleware.ValidateQuery(api.log, models.ListSubsParams{})).Get("/total", api.GetSum)
+		r.With(middleware.ValidateUUID(api.log, "id")).Get("/{id}", api.GetSubByID)
+		r.Get("/", api.ListSubs)
+
+		r.With(middleware.BindAndValidate(api.log, models.Subscription{})).Post("/", api.CreateSub)
+
+		r.With(middleware.BindAndValidate(api.log, models.Subscription{})).Put("/{id}", api.UpdateSub)
+
+		r.With(middleware.ValidateUUID(api.log, "id")).Delete("/{id}", api.DeleteSub)
+
 	})
 
-	return router
+	return r
 }

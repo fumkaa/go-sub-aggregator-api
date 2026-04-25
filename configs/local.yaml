@@ -1,5 +1,12 @@
 env: "local"
 
+
+storage:
+  driver: "postgres"
+  host: "localhost"
+  port: 5432
+  db_name: "sub-aggregator-api"
+
 http_server:
   port: 8080
   read_timeout: 30s

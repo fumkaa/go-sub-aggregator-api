@@ -9,6 +9,9 @@ import (
 
 	"github.com/fumkaa/go-sub-aggregator-api/internal/app"
 	"github.com/fumkaa/go-sub-aggregator-api/internal/config"
+	"github.com/fumkaa/go-sub-aggregator-api/internal/lib/logger/sl"
+	"github.com/fumkaa/go-sub-aggregator-api/internal/repository/postgres"
+	"github.com/fumkaa/go-sub-aggregator-api/internal/services/subscription"
 )
 
 const (
@@ -31,7 +34,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
-	application := app.MustNew(logger, nil, cfg)
+	storage := postgres.MustNew(ctx,
+		cfg.Storage.DSN(),
+		logger,
+	)
+
+	subscriptionService := subscription.NewSubscriptionManager(logger, storage, storage, storage)
+	application := app.MustNew(logger, subscriptionService, cfg)
 
 	go application.HttpServer.MustRun()
 
@@ -49,13 +58,16 @@ func setupLogger(env string) *slog.Logger {
 	var logger *slog.Logger
 	switch env {
 	case envLocal:
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		baseHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
-		}))
+		})
+		logger = slog.New(&sl.ContextHandler{Handler: baseHandler})
 	case envProd:
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		baseHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
-		}))
+		})
+		logger = slog.New(&sl.ContextHandler{Handler: baseHandler})
 	}
+	slog.SetDefault(logger)
 	return logger
 }

@@ -4,9 +4,6 @@ import (
 	"log/slog"
 )
 
-type SubscriptionService interface {
-}
-
 type serverAPI struct {
 	subService SubscriptionService
 	log        *slog.Logger

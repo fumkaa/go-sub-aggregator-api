@@ -2,6 +2,7 @@ package config
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 
 type Config struct {
 	Env        string           `yaml:"env" env-default:"local"`
+	Storage    StorageConfig    `yaml:"storage"`
 	HttpServer HttpServerConfig `yaml:"http_server"`
 }
 
@@ -19,6 +21,19 @@ type HttpServerConfig struct {
 	ReadTimeout  time.Duration `yaml:"read_timeout" env-default:"30s"`
 	WriteTimeout time.Duration `yaml:"write_timeout" env-default:"30s"`
 	IdleTimeout  time.Duration `yaml:"idle_timeout" env-default:"60s"`
+}
+
+type StorageConfig struct {
+	Driver   string `yaml:"driver"`
+	Host     string `yaml:"host" env-default:"localhost"`
+	Port     int    `yaml:"port" env-default:"5432"`
+	DBName   string `yaml:"db_name"`
+	User     string `env:"DB_USER" env-required:"true"`
+	Password string `env:"DB_PASSWORD" env-required:"true"`
+}
+
+func (s *StorageConfig) DSN() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%d/%s", s.Driver, s.User, s.Password, s.Host, s.Port, s.DBName)
 }
 
 func MustLoad() *Config {
