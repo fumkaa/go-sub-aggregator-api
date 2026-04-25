@@ -3,9 +3,7 @@ env: "local"
 
 storage:
   driver: "postgres"
-  host: "localhost"
-  port: 5432
-  db_name: "sub-aggregator-api"
+  host: "postgres"
   max_conns: 25
   min_conns: 5
   max_conn_idle_time: "30m"

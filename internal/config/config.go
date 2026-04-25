@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -26,8 +25,8 @@ type HttpServerConfig struct {
 type StorageConfig struct {
 	Driver            string        `yaml:"driver"`
 	Host              string        `yaml:"host" env-default:"localhost"`
-	Port              int           `yaml:"port" env-default:"5432"`
-	DBName            string        `yaml:"db_name"`
+	Port              int           `env:"DB_PORT" env-default:"5432"`
+	DBName            string        `env:"DB_NAME" env-required:"true"`
 	User              string        `env:"DB_USER" env-required:"true"`
 	Password          string        `env:"DB_PASSWORD" env-required:"true"`
 	MaxConns          int32         `yaml:"max_conns" env-default:"25"`
@@ -41,10 +40,6 @@ func (s *StorageConfig) DSN() string {
 }
 
 func MustLoad() *Config {
-	if err := godotenv.Load(".env"); err != nil {
-		panic("failed to load .env file: " + err.Error())
-	}
-
 	configPath := fetchConfigPath()
 	if configPath == "" {
 		panic("config path is required")

@@ -1,0 +1,60 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: ./volumes/build/postgres/Dockerfile
+    image: sub-aggregator-db
+    container_name: sub-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT}:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sub-network
+
+  migrator:
+    build:
+      context: .
+      dockerfile: ./volumes/build/migrations/Dockerfile
+    container_name: sub-migrator
+    depends_on:
+      postgres:
+        condition: service_healthy 
+    env_file:
+      - .env
+    command: >
+      --storage-path=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      --migrations-path=./migrations
+    networks:
+      - sub-network
+
+  app:
+    build:
+      context: .
+      dockerfile: ./volumes/build/app/Dockerfile
+    container_name: sub-app
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy 
+    ports:
+      - "8080:8080"
+    environment:
+      CONFIG_PATH: "./configs/local.yaml"
+    env_file:
+      - .env
+    networks:
+      - sub-network
+
+networks:
+  sub-network:
+    driver: bridge
