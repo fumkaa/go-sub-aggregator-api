@@ -25,9 +25,6 @@ func main() {
 	logger := setupLogger(cfg.Env)
 	logger.Info("starting sub-aggregator api",
 		slog.String("env", cfg.Env),
-		// remove in production
-		slog.Any("config", cfg),
-		// ---
 		slog.Int("port", cfg.HttpServer.Port),
 	)
 
@@ -35,7 +32,7 @@ func main() {
 	defer cancel()
 
 	storage := postgres.MustNew(ctx,
-		cfg.Storage.DSN(),
+		&cfg.Storage,
 		logger,
 	)
 

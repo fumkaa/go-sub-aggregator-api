@@ -24,12 +24,16 @@ type HttpServerConfig struct {
 }
 
 type StorageConfig struct {
-	Driver   string `yaml:"driver"`
-	Host     string `yaml:"host" env-default:"localhost"`
-	Port     int    `yaml:"port" env-default:"5432"`
-	DBName   string `yaml:"db_name"`
-	User     string `env:"DB_USER" env-required:"true"`
-	Password string `env:"DB_PASSWORD" env-required:"true"`
+	Driver            string        `yaml:"driver"`
+	Host              string        `yaml:"host" env-default:"localhost"`
+	Port              int           `yaml:"port" env-default:"5432"`
+	DBName            string        `yaml:"db_name"`
+	User              string        `env:"DB_USER" env-required:"true"`
+	Password          string        `env:"DB_PASSWORD" env-required:"true"`
+	MaxConns          int32         `yaml:"max_conns" env-default:"25"`
+	MinConns          int32         `yaml:"min_conns" env-default:"5"`
+	MaxConnIdleTime   time.Duration `yaml:"max_conn_idle_time" env-default:"30m"`
+	HealthCheckPeriod time.Duration `yaml:"health_check_period" env-default:"1m"`
 }
 
 func (s *StorageConfig) DSN() string {

@@ -3,8 +3,8 @@ package postgres
 import (
 	"context"
 	"log/slog"
-	"time"
 
+	"github.com/fumkaa/go-sub-aggregator-api/internal/config"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -13,20 +13,21 @@ type Storage struct {
 	log    *slog.Logger
 }
 
-func MustNew(ctx context.Context, connString string, log *slog.Logger) *Storage {
+func MustNew(ctx context.Context, cfg *config.StorageConfig, log *slog.Logger) *Storage {
 	const op = "postgres.MustNew()"
 	tlog := log.With(slog.String("op", op))
 
 	tlog.Info("creating postgres connection...")
 
-	config, err := pgxpool.ParseConfig(connString)
+	config, err := pgxpool.ParseConfig(cfg.DSN())
 	if err != nil {
 		panic(err)
 	}
 
-	config.MaxConns = 25
-	config.MinConns = 5
-	config.MaxConnIdleTime = time.Minute * 30
+	config.MaxConns = cfg.MaxConns
+	config.MinConns = cfg.MinConns
+	config.MaxConnIdleTime = cfg.MaxConnIdleTime
+	config.HealthCheckPeriod = cfg.HealthCheckPeriod
 
 	dbpool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
