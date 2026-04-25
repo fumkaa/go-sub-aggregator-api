@@ -12,8 +12,8 @@ type Subscription struct {
 }
 
 type ListSubsParams struct {
-	UserID      uuid.UUID `json:"user_id" validate:"required,uuid"`
-	ServiceName string    `json:"service_name" validate:"required,min=2"`
-	StartDate   string    `json:"start_date" validate:"omitempty,mm_yyyy"`
-	EndDate     string    `json:"end_date" validate:"omitempty,mm_yyyy"`
+	UserID      uuid.UUID `schema:"user_id" validate:"required,uuid"`
+	ServiceName string    `schema:"service_name" validate:"required,min=2"`
+	StartDate   string    `schema:"start_date" validate:"omitempty,mm_yyyy"`
+	EndDate     string    `schema:"end_date" validate:"omitempty,mm_yyyy"`
 }

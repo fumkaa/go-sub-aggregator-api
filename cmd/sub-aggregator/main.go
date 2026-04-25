@@ -50,6 +50,7 @@ func main() {
 	logger.Info("stopping sub-aggregator api...")
 
 	application.HttpServer.Stop(ctx)
+	storage.Close()
 
 	logger.Info("sub-aggregator api stopped.")
 }

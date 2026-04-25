@@ -3,9 +3,11 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
+	"github.com/fumkaa/go-sub-aggregator-api/internal/domain"
 	"github.com/fumkaa/go-sub-aggregator-api/internal/domain/models"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -32,8 +34,6 @@ func (s *serverAPI) CreateSub(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
-	sub.ID = uuid.New()
 
 	log.InfoContext(r.Context(), "attempting to create subscription",
 		slog.String("user_id", sub.UserID.String()),
@@ -71,7 +71,11 @@ func (s *serverAPI) GetSubByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sub, err := s.subService.GetSubByID(r.Context(), idUUID)
-	if err != nil {
+	if errors.Is(err, domain.ErrSubNotFound) {
+		log.InfoContext(r.Context(), "subscription not found")
+		http.Error(w, "Subscription not found", http.StatusNotFound)
+		return
+	} else if err != nil {
 		log.ErrorContext(r.Context(), "failed to get subscription", slog.String("error", err.Error()))
 		http.Error(w, "Failed to get subscription", http.StatusInternalServerError)
 		return
@@ -111,7 +115,11 @@ func (s *serverAPI) UpdateSub(w http.ResponseWriter, r *http.Request) {
 	sub.ID = idUUID
 
 	err = s.subService.UpdateSub(r.Context(), sub)
-	if err != nil {
+	if errors.Is(err, domain.ErrSubNotFound) {
+		log.InfoContext(r.Context(), "subscription not found")
+		http.Error(w, "Subscription not found", http.StatusNotFound)
+		return
+	} else if err != nil {
 		log.ErrorContext(r.Context(), "failed to update subscription", slog.String("error", err.Error()))
 		http.Error(w, "Failed to update subscription", http.StatusInternalServerError)
 		return
@@ -140,7 +148,11 @@ func (s *serverAPI) DeleteSub(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = s.subService.DeleteSub(r.Context(), idUUID)
-	if err != nil {
+	if errors.Is(err, domain.ErrSubNotFound) {
+		log.InfoContext(r.Context(), "subscription not found")
+		http.Error(w, "Subscription not found", http.StatusNotFound)
+		return
+	} else if err != nil {
 		log.ErrorContext(r.Context(), "failed to delete subscription", slog.String("error", err.Error()))
 		http.Error(w, "Failed to delete subscription", http.StatusInternalServerError)
 		return
@@ -188,7 +200,9 @@ func (s *serverAPI) GetSum(w http.ResponseWriter, r *http.Request) {
 		slog.String("op", op),
 	)
 
-	userId := chi.URLParam(r, "user_id")
+	q := r.URL.Query()
+
+	userId := q.Get("user_id")
 	userIdUUID, err := uuid.Parse(userId)
 	if err != nil {
 		log.ErrorContext(r.Context(), "failed to parse user ID", slog.String("error", err.Error()))
@@ -198,9 +212,9 @@ func (s *serverAPI) GetSum(w http.ResponseWriter, r *http.Request) {
 
 	params := models.ListSubsParams{
 		UserID:      userIdUUID,
-		ServiceName: chi.URLParam(r, "service_name"),
-		StartDate:   chi.URLParam(r, "start_date"),
-		EndDate:     chi.URLParam(r, "end_date"),
+		ServiceName: q.Get("service_name"),
+		StartDate:   q.Get("start_date"),
+		EndDate:     q.Get("end_date"),
 	}
 
 	log.InfoContext(r.Context(), "calculating total cost",
