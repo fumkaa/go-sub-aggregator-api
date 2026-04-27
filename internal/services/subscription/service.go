@@ -13,7 +13,7 @@ import (
 
 type SubscriptionReader interface {
 	GetSubByID(ctx context.Context, id uuid.UUID) (models.Subscription, error)
-	ListSubs(ctx context.Context, userId uuid.UUID) ([]models.Subscription, error)
+	ListSubs(ctx context.Context, userId uuid.UUID, limit, offset int) ([]models.Subscription, error)
 }
 
 type SubscriptionWriter interface {
@@ -93,10 +93,10 @@ func (m *SubscriptionManager) DeleteSub(ctx context.Context, id uuid.UUID) error
 	return nil
 }
 
-func (m *SubscriptionManager) ListSubs(ctx context.Context, userID uuid.UUID) ([]models.Subscription, error) {
+func (m *SubscriptionManager) ListSubs(ctx context.Context, userID uuid.UUID, limit, offset int) ([]models.Subscription, error) {
 	const op = "subscription.SubscriptionManager.ListSubs()"
 
-	subs, err := m.reader.ListSubs(ctx, userID)
+	subs, err := m.reader.ListSubs(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}

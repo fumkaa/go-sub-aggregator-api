@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/fumkaa/go-sub-aggregator-api/internal/domain"
 	"github.com/fumkaa/go-sub-aggregator-api/internal/domain/models"
@@ -18,7 +19,7 @@ type SubscriptionService interface {
 	GetSubByID(ctx context.Context, id uuid.UUID) (models.Subscription, error)
 	UpdateSub(ctx context.Context, sub models.Subscription) error
 	DeleteSub(ctx context.Context, id uuid.UUID) error
-	ListSubs(ctx context.Context, userId uuid.UUID) ([]models.Subscription, error)
+	ListSubs(ctx context.Context, userId uuid.UUID, limit, offset int) ([]models.Subscription, error)
 	GetSum(ctx context.Context, params models.ListSubsParams) (int, error)
 }
 
@@ -180,7 +181,37 @@ func (s *serverAPI) ListSubs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	subs, err := s.subService.ListSubs(r.Context(), userIdUUID)
+	limitInt := 10
+	offsetInt := 0
+
+	limit := r.URL.Query().Get("limit")
+	if limit != "" {
+		limitInt, err = strconv.Atoi(limit)
+		if err != nil || limitInt < 1 {
+			errMsg := "invalid value"
+			if err != nil {
+				errMsg = err.Error()
+			}
+			log.ErrorContext(r.Context(), "failed to parse limit", slog.String("error", errMsg))
+			http.Error(w, "Invalid limit", http.StatusBadRequest)
+			return
+		}
+		if limitInt > 100 {
+			limitInt = 100
+		}
+	}
+
+	offset := r.URL.Query().Get("offset")
+	if offset != "" || offsetInt < 0 {
+		offsetInt, err = strconv.Atoi(offset)
+		if err != nil {
+			log.ErrorContext(r.Context(), "failed to parse offset", slog.String("error", err.Error()))
+			http.Error(w, "Invalid offset", http.StatusBadRequest)
+			return
+		}
+	}
+
+	subs, err := s.subService.ListSubs(r.Context(), userIdUUID, limitInt, offsetInt)
 	if err != nil {
 		log.ErrorContext(r.Context(), "failed to list subscriptions", slog.String("error", err.Error()))
 		http.Error(w, "Failed to list subscriptions", http.StatusInternalServerError)

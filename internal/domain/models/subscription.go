@@ -13,7 +13,7 @@ type Subscription struct {
 
 type ListSubsParams struct {
 	UserID      uuid.UUID `schema:"user_id" validate:"required,uuid"`
-	ServiceName string    `schema:"service_name" validate:"required,min=2"`
+	ServiceName string    `schema:"service_name" validate:"omitempty,min=2"`
 	StartDate   string    `schema:"start_date" validate:"omitempty,mm_yyyy"`
 	EndDate     string    `schema:"end_date" validate:"omitempty,mm_yyyy"`
 }

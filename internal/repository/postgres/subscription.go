@@ -111,7 +111,7 @@ func (s *Storage) GetSubByID(ctx context.Context, id uuid.UUID) (models.Subscrip
 	return sub, nil
 }
 
-func (s *Storage) ListSubs(ctx context.Context, userId uuid.UUID) ([]models.Subscription, error) {
+func (s *Storage) ListSubs(ctx context.Context, userId uuid.UUID, limit, offset int) ([]models.Subscription, error) {
 	const op = "postgres.Storage.ListSubs()"
 
 	query := `
@@ -120,10 +120,12 @@ func (s *Storage) ListSubs(ctx context.Context, userId uuid.UUID) ([]models.Subs
 			TO_CHAR(end_date, 'MM-YYYY')
 		FROM subscriptions
 		WHERE user_id = $1
+		ORDER BY start_date DESC
+        LIMIT $2 OFFSET $3
 	`
 
 	var subs []models.Subscription
-	rows, err := s.dbpool.Query(ctx, query, userId)
+	rows, err := s.dbpool.Query(ctx, query, userId, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -156,22 +158,38 @@ func (s *Storage) GetSum(ctx context.Context, params models.ListSubsParams) (int
 	const op = "postgres.Storage.GetSum()"
 
 	query := `
-		SELECT COALESCE(SUM(price), 0)
-		FROM subscriptions
-		WHERE user_id = $1 AND service_name = $2
+		SELECT COALESCE(SUM(
+            price * (
+                EXTRACT(YEAR FROM age(
+                    LEAST(end_date, COALESCE(TO_DATE($2, 'MM-YYYY'), end_date)), 
+                    GREATEST(start_date, COALESCE(TO_DATE($3, 'MM-YYYY'), start_date))
+                )) * 12 +
+                EXTRACT(MONTH FROM age(
+                    LEAST(end_date, COALESCE(TO_DATE($2, 'MM-YYYY'), end_date)), 
+                    GREATEST(start_date, COALESCE(TO_DATE($3, 'MM-YYYY'), start_date))
+                )) + 1
+            )
+        ), 0)::INTEGER
+        FROM subscriptions
+        WHERE user_id = $1
 	`
-	args := []any{params.UserID, params.ServiceName}
-	argID := 3
-
+	var pStart, pEnd *string
 	if params.StartDate != "" {
-		query += fmt.Sprintf(" AND TO_DATE(start_date, 'MM-YYYY') >= TO_DATE($%d, 'MM-YYYY')", argID)
-		args = append(args, params.StartDate)
-		argID++
+		pStart = &params.StartDate
 	}
 	if params.EndDate != "" {
-		query += fmt.Sprintf(" AND TO_DATE(end_date, 'MM-YYYY') <= TO_DATE($%d, 'MM-YYYY')", argID)
-		args = append(args, params.EndDate)
+		pEnd = &params.EndDate
 	}
+
+	args := []any{params.UserID, pEnd, pStart}
+
+	if params.ServiceName != "" {
+		query += " AND service_name = $4"
+		args = append(args, params.ServiceName)
+	}
+
+	query += " AND start_date <= COALESCE(TO_DATE($2, 'MM-YYYY'), end_date)"
+	query += " AND end_date >= COALESCE(TO_DATE($3, 'MM-YYYY'), start_date)"
 
 	var sum int
 	err := s.dbpool.QueryRow(ctx, query, args...).Scan(&sum)
